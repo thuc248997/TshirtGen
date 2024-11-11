@@ -6,22 +6,21 @@ from datetime import datetime
 import peft
 
 # Constants
-MODEL_NAME = "tryonlabs/FLUX.1-dev-LoRA-Outfit-Generator"
 IMAGE_HEIGHT = 1024
 IMAGE_WIDTH = 1024
-GUIDANCE_SCALE = 3.5
+GUIDANCE_SCALE = 0.8
 NUM_INFERENCE_STEPS = 30
 MAX_SEQUENCE_LENGTH = 512
 SEED = 42
 
-# Initialize the FLUX pipeline
-pipe = FluxPipeline.from_pretrained(
-    "black-forest-labs/FLUX.1-dev", # Base model
-    torch_dtype=torch.bfloat16
-)
-# Load LoRA weights
-pipe.load_lora_weights("tryonlabs/FLUX.1-dev-LoRA-Outfit-Generator")
-pipe.enable_model_cpu_offload()
+# # Initialize the FLUX pipeline
+# pipe = FluxPipeline.from_pretrained(
+#     "black-forest-labs/FLUX.1-dev", # Base model
+#     torch_dtype=torch.bfloat16
+# )
+# # Load LoRA weights
+# pipe.load_lora_weights("jakedahn/flux-latentpop")
+# pipe.enable_model_cpu_offload()
 
 def save_image(image: Image.Image, output_dir: str = "outputs") -> str:
     """
@@ -47,22 +46,29 @@ def save_image(image: Image.Image, output_dir: str = "outputs") -> str:
     print(f"Image saved to: {filepath}")
     return filepath
 
-def generate_fashion_outfit(color: str, content_print: str) -> str:
+def generate_fashion_outfit(content_print: str, lora_path: str) -> Image.Image:
     """
     Generate a image sample T-shirt with specified color and print content.
 
     Args:
-        color (str): Color of the T-shirt (e.g., "Black", "White", "Red")
-        content_print (str): Content to print on the T-shirt (e.g., "a tiger in the center")
+        color (str): Color of the T-shirt
+        content_print (str): Content to print on the T-shirt
+        lora_path (str): Path to LoRA weights
 
     Returns:
-        str: Path to the saved image
+        Image.Image: Generated PIL Image
     """
-    prompt = f"A T-shirt with Color: {color}, Department: T-shirt, Detail: Basic, " \
-             f"Fabric-Elasticity: Medium Stretch, Fit: Regular, Hemline: Straight, " \
-             f"Material: Cotton, Neckline: Crew Neck, Pattern: Solid with Print, " \
-             f"Sleeve-Length: Short Sleeve, Style: Casual, Type: Regular, " \
-             f"Waistline: Natural, Content Print on Garment: {content_print}."
+    # Initialize the pipeline for each generation to ensure clean state
+    pipe = FluxPipeline.from_pretrained(
+        "black-forest-labs/FLUX.1-dev",
+        torch_dtype=torch.bfloat16
+    )
+    
+    # Load selected LoRA weights
+    pipe.load_lora_weights(lora_path)
+    pipe.enable_model_cpu_offload()
+
+    prompt = f"{content_print}"
 
     image = pipe(
         prompt,
@@ -73,9 +79,11 @@ def generate_fashion_outfit(color: str, content_print: str) -> str:
         max_sequence_length=MAX_SEQUENCE_LENGTH,
         generator=torch.Generator(device="cuda").manual_seed(SEED),
     ).images[0]
-
-    return save_image(image)
+    
+    # Save image but return the PIL Image object
+    save_image(image)
+    return image
 
 if __name__ == "__main__":
     # Example usage
-    generate_fashion_outfit("Black", "a tiger in the center")
+    generate_fashion_outfit("Two person hugging with text 'ST LOUIS CITY SC'")
