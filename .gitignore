@@ -1,0 +1,8 @@
+models/*
+outputs/*
+__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+*.pyz
+.gradio/*
